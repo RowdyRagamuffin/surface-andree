@@ -160,6 +160,5 @@ workstations/surface-andree/
 │   ├── validate.sh                # Pre-push validation & secret leak scanner
 │   └── sync_to_github.sh          # Native git push dispatcher
 ├── cosign.pub                     # Sigstore public key for image verification
-├── SIGNING_SECRET_SETUP.md        # Technical guide for repository signing secrets
 └── README.md                      # Operational handover and system documentation
 ```

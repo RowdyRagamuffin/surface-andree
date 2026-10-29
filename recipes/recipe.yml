@@ -7,7 +7,7 @@ description: Custom Universal Blue Fedora Silverblue image tailored for Microsof
 
 # the base image to build on top of (FROM) and the version tag to use
 base-image: ghcr.io/ublue-os/silverblue-main
-image-version: 41 # Stable Fedora 41 release (can also be 'latest')
+image-version: 44 # Active stable Fedora release (HTTP 200 on GHCR)
 
 # module configuration, executed in order
 modules:

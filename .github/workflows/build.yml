@@ -29,12 +29,25 @@ jobs:
           # !! Add your recipes here
           - recipe.yml
     steps:
+      - name: Clean Signing Key
+        id: clean_key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.SIGNING_SECRET }}
+        run: |
+          CLEANED_KEY=$(printf '%s\n' "$RAW_KEY" | tr -d '\r')
+          {
+            echo "cosign_key<<EOF"
+            echo "$CLEANED_KEY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       # the build is fully handled by the reusable github action
       - name: Build Custom Image
         uses: blue-build/github-action@v1.13
         with:
           recipe: ${{ matrix.recipe }}
-          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
+          cosign_private_key: ${{ steps.clean_key.outputs.cosign_key }}
           registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
 

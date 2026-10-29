@@ -1,36 +1,32 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 # image will be published to ghcr.io/<user>/<name>
-name: surface-andrees
+name: surface-andree
 # description will be included in the image's metadata
-description: This is my personal OS image.
+description: Custom Universal Blue Fedora Silverblue image tailored for Microsoft Surface Pro 9 (Intel).
 
 # the base image to build on top of (FROM) and the version tag to use
 base-image: ghcr.io/ublue-os/silverblue-main
-image-version: 44 # You can pin to a specific version of Fedora as well
+image-version: 41 # Stable Fedora 41 release (can also be 'latest')
 
 # module configuration, executed in order
-# you can include multiple instances of the same module
 modules:
   - type: files
     files:
       - source: system
-        destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
+        destination: / # copies files/system/* into the root folder /
 
-  # 1. Add the custom linux-surface package repository
-  - type: yum-repo
-    filename: linux-surface.repo
-    location: https://pkg.surfacelinux.com/fedora/
+  # 1. Package management and repositories via dnf/rpm-ostree
+  - type: dnf
+    repos:
+      files:
+        - https://pkg.surfacelinux.com/fedora/linux-surface.repo
+        - https://pkgs.tailscale.com/stable/fedora/tailscale.repo
+        - https://repository.mullvad.net/rpm/stable/mullvad.repo
+      copr:
+        - atim/starship
 
-  - type: yum-repo
-    filename: tailscale.repo
-    location: https://pkgs.tailscale.com/stable/fedora/tailscale.repo
-
-  - type: yum-repo
-    filename: mullvad.repo
-    location: https://mullvad.net
-
-  # 2. Handle the core kernel swap using standard rpm-ostree overrides
+  # 2. Kernel swap and Surface Pro 9 driver layer
   - type: rpm-ostree
     remove:
       - kernel
@@ -44,18 +40,18 @@ modules:
       - kernel-surface-core
       - kernel-surface-modules
       - kernel-surface-modules-extra
-      - iptsd                   # Critical for Surface touchscreen/stylus support
+      - iptsd                   # Surface touchscreen/stylus daemon
       - libwacom-surface
       - libwacom-surface-data
-      - surface-secureboot
+      - surface-secureboot      # MOK key enrollment for Secure Boot
+      - surface-control         # Surface battery and thermal profile CLI
+      - surface-dtx-daemon      # Surface detachment daemon
       - tailscale
       - mullvad-vpn             # Official Mullvad VPN client package
       - syncthing               # Syncthing file synchronization
-      
+
+  # 3. CLI and desktop utilities
   - type: dnf
-    repos:
-      copr:
-        - atim/starship
     install:
       packages:
         - micro
@@ -65,24 +61,23 @@ modules:
         - vlc
     remove:
       packages:
-        # example: removing firefox (in favor of the flatpak)
-        # "firefox" is the main package, "firefox-langpacks" is a dependency
         - firefox
-        - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
+        - firefox-langpacks
 
-  # 4. Automatically Enable the Tailscale Service on Boot
+  # 4. Hardware and network service daemons
   - type: systemd
     system:
       enabled:
         - tailscaled.service
         - iptsd.service
+        - surface-dtx-daemon.service
 
+  # 5. Flatpak application suites
   - type: default-flatpaks
     configurations:
-      - notify: true # Send notification after install/uninstall is finished (true/false)
+      - notify: true
         scope: system
-        # If no repo information is specified, Flathub will be used by default
-        install: # system flatpaks we want all users to have and not remove
+        install:
           - com.brave.Browser
           - org.gnome.Loupe
           - com.valvesoftware.Steam
@@ -107,6 +102,7 @@ modules:
           - com.jgraph.drawio.desktop
           - io.github.hrkfdn.ncspot
           - app.devsuite.Ptyxis
-      - scope: user # Also add Flathub user repo, but no user packages
+      - scope: user
 
-  - type: signing # this sets up the proper policy & signing files for signed images to work fully
+  # 6. Cryptographic attestation and signature setup
+  - type: signing

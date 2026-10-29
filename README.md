@@ -1,43 +1,118 @@
-# BlueBuild Template &nbsp; [![bluebuild build badge](https://github.com/blue-build/template/actions/workflows/build.yml/badge.svg)](https://github.com/blue-build/template/actions/workflows/build.yml)
+# Surface Pro 9 (Intel) Universal Blue OS Image Pipeline
 
-See the [BlueBuild docs](https://blue-build.org/how-to/setup/) for quick setup instructions for setting up your own repository based on this template.
+Declarative, immutable client operating system pipeline for the **Microsoft Surface Pro 9 (Intel)** built via BlueBuild, synchronized across devices via Syncthing, verified locally on the home server, built and signed on GitHub Actions, and deployed atomically to the Surface Pro 9.
 
-After setup, it is recommended you update this README to describe your custom image.
+---
 
-## Installation
+## 1. Architecture & GitOps Supply Chain Topology
 
-> [!WARNING]  
-> [This is an experimental feature](https://www.fedoraproject.org/wiki/Changes/OstreeNativeContainerStable), try at your own discretion.
+```mermaid
+flowchart LR
+    subgraph Client["Microsoft Surface Pro 9 (Intel)"]
+        direction TB
+        LocalEdit["Recipe & Config Edits"]
+        OSTreeDeployment["Immutable OS Layer\n(rpm-ostree / bootc)"]
+    end
 
-To rebase an existing atomic Fedora installation to the latest build:
+    subgraph HomeServer["Home Server (servegio)"]
+        direction TB
+        Staging["Staging Directory\nworkstations/surface-andree/"]
+        SyncthingSync["Syncthing Continuous Sync"]
+        LocalGate["Quality Gate & Validation\n(scripts/validate.sh)"]
+        SyncScript["Push Trigger\n(scripts/sync_to_github.sh)"]
+    end
 
-- First rebase to the unsigned image, to get the proper signing keys and policies installed:
-  ```
-  rpm-ostree rebase ostree-unverified-registry:ghcr.io/blue-build/template:latest
-  ```
-- Reboot to complete the rebase:
-  ```
-  systemctl reboot
-  ```
-- Then rebase to the signed image, like so:
-  ```
-  rpm-ostree rebase ostree-image-signed:docker://ghcr.io/blue-build/template:latest
-  ```
-- Reboot again to complete the installation
-  ```
-  systemctl reboot
-  ```
+    subgraph GitHubCI["GitHub (RowdyRagamuffin/surface-andree) & GHCR"]
+        direction TB
+        PublicRepo["surface-andree Repository"]
+        Actions["GitHub Actions\n(blue-build/github-action@v1.13)"]
+        Cosign["Cosign Signature\n(SIGNING_SECRET)"]
+        GHCR["ghcr.io/RowdyRagamuffin/surface-andree:latest"]
+    end
 
-The `latest` tag will automatically point to the latest build. That build will still always use the Fedora version specified in `recipe.yml`, so you won't get accidentally updated to the next major version.
-
-## ISO
-
-If build on Fedora Atomic, you can generate an offline ISO with the instructions available [here](https://blue-build.org/how-to/generate-iso/#_top). These ISOs cannot unfortunately be distributed on GitHub for free due to large sizes, so for public projects something else has to be used for hosting.
-
-## Verification
-
-These images are signed with [Sigstore](https://www.sigstore.dev/)'s [cosign](https://github.com/sigstore/cosign). You can verify the signature by downloading the `cosign.pub` file from this repo and running the following command:
-
-```bash
-cosign verify --key cosign.pub ghcr.io/blue-build/template
+    LocalEdit -.->|Syncthing Sync| SyncthingSync
+    SyncthingSync --> Staging
+    Staging --> LocalGate
+    LocalGate --> SyncScript
+    SyncScript -->|git push / subtree| PublicRepo
+    PublicRepo --> Actions
+    Actions --> Cosign
+    Cosign --> GHCR
+    GHCR -->|rpm-ostree rebase| OSTreeDeployment
 ```
+
+---
+
+## 2. Directory Layout & Syncthing Synchronization
+
+This directory is part of the synchronized storage pool:
+```
+workstations/surface-andree/
+├── recipes/
+│   └── recipe.yml                 # Declarative BlueBuild specification
+├── files/
+│   └── system/
+│       └── etc/
+│           └── iptsd.d/
+│               └── 90-calibration.conf # Surface Pro 9 touch/stylus sensitivity tuning
+├── .github/
+│   └── workflows/
+│       └── build.yml              # CI/CD pipeline for building & signing image
+├── scripts/
+│   ├── validate.sh                # Local pre-push syntax, schema & secret scanner
+│   └── sync_to_github.sh          # Git subtree synchronization to GitHub
+├── cosign.pub                     # Public key for container signature verification
+└── README.md                      # Operational and rollback documentation
+```
+
+---
+
+## 3. GitHub Secrets Setup (Required for Image Signing)
+
+To enable automatic cryptographic signing on GitHub Actions:
+1. Navigate to: `https://github.com/RowdyRagamuffin/surface-andree/settings/secrets/actions`
+2. Click **New repository secret**.
+3. Name: `SIGNING_SECRET`
+4. Value: Paste the generated private key (provided in the operational handover).
+5. Ensure `cosign.pub` in this repository root matches the private key.
+
+---
+
+## 4. Local Validation & Git Sync Runbook
+
+### Run Quality Gate Check
+```bash
+bash workstations/surface-andree/scripts/validate.sh
+```
+
+### Push Validated Recipe to GitHub
+```bash
+bash workstations/surface-andree/scripts/sync_to_github.sh surface-andree main
+```
+
+---
+
+## 5. Deployment & Rollback Runbook (on Surface Pro 9)
+
+### Initial Rebase to Custom GHCR Image
+Run in terminal on your Surface Pro 9:
+```bash
+# Rebase to the newly generated container image
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/rowdyragamuffin/surface-andree:latest
+
+# Reboot into the new immutable deployment
+systemctl reboot
+```
+
+### Pull Regular Updates
+```bash
+rpm-ostree upgrade
+```
+
+### Instant Atomic Rollback
+If any upstream kernel regression or broken dependency occurs:
+```bash
+rpm-ostree rollback
+systemctl reboot
+```
+Or select the previous deployment entry directly from the GRUB boot menu during device startup.

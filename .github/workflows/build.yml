@@ -40,8 +40,8 @@ jobs:
             exit 1
           fi
 
-          # Strip carriage returns and accidental wrapping quotes
-          CLEANED_KEY=$(printf '%s\n' "$RAW_KEY" | tr -d '\r' | sed -e 's/^[[:space:]]*["'"']//" -e 's/["'"'][[:space:]]*$//')
+          # Strip carriage returns
+          CLEANED_KEY=$(printf '%s\n' "$RAW_KEY" | tr -d '\r')
 
           {
             echo "cosign_key<<EOF"

@@ -29,13 +29,20 @@ jobs:
           # !! Add your recipes here
           - recipe.yml
     steps:
-      - name: Clean Signing Key
+      - name: Clean and Validate Signing Key
         id: clean_key
         shell: bash
         env:
-          RAW_KEY: ${{ secrets.SIGNING_SECRET }}
+          RAW_KEY: ${{ secrets.SIGNING_SECRET || secrets.COSIGN_PRIVATE_KEY }}
         run: |
-          CLEANED_KEY=$(printf '%s\n' "$RAW_KEY" | tr -d '\r')
+          if [ -z "$RAW_KEY" ]; then
+            echo "::error::Neither 'SIGNING_SECRET' nor 'COSIGN_PRIVATE_KEY' is set in GitHub Repository Secrets!"
+            exit 1
+          fi
+
+          # Strip carriage returns and accidental wrapping quotes
+          CLEANED_KEY=$(printf '%s\n' "$RAW_KEY" | tr -d '\r' | sed -e 's/^[[:space:]]*["'"']//" -e 's/["'"'][[:space:]]*$//')
+
           {
             echo "cosign_key<<EOF"
             echo "$CLEANED_KEY"

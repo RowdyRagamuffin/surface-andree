@@ -43,7 +43,6 @@ modules:
       - iptsd                   # Surface touchscreen/stylus daemon (activated dynamically via udev)
       - libwacom-surface
       - libwacom-surface-data
-      - surface-secureboot      # MOK key enrollment for Secure Boot
       - surface-control         # Surface battery and thermal profile CLI
       - tailscale
       - mullvad-vpn             # Official Mullvad VPN client package

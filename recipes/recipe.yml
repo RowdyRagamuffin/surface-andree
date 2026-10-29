@@ -1,13 +1,13 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 # image will be published to ghcr.io/<user>/<name>
-name: template
+name: surface-andrees
 # description will be included in the image's metadata
 description: This is my personal OS image.
 
 # the base image to build on top of (FROM) and the version tag to use
 base-image: ghcr.io/ublue-os/silverblue-main
-image-version: latest # You can pin to a specific version of Fedora as well
+image-version: 44 # You can pin to a specific version of Fedora as well
 
 # module configuration, executed in order
 # you can include multiple instances of the same module
@@ -17,6 +17,41 @@ modules:
       - source: system
         destination: / # copies files/system/* (* means everything inside it) into your image's root folder /
 
+  # 1. Add the custom linux-surface package repository
+  - type: yum-repo
+    filename: linux-surface.repo
+    location: https://pkg.surfacelinux.com/fedora/
+
+  - type: yum-repo
+    filename: tailscale.repo
+    location: https://pkgs.tailscale.com/stable/fedora/tailscale.repo
+
+  - type: yum-repo
+    filename: mullvad.repo
+    location: https://mullvad.net
+
+  # 2. Handle the core kernel swap using standard rpm-ostree overrides
+  - type: rpm-ostree
+    remove:
+      - kernel
+      - kernel-core
+      - kernel-modules
+      - kernel-modules-extra
+      - libwacom
+      - libwacom-data
+    install:
+      - kernel-surface
+      - kernel-surface-core
+      - kernel-surface-modules
+      - kernel-surface-modules-extra
+      - iptsd                   # Critical for Surface touchscreen/stylus support
+      - libwacom-surface
+      - libwacom-surface-data
+      - surface-secureboot
+      - tailscale
+      - mullvad-vpn             # Official Mullvad VPN client package
+      - syncthing               # Syncthing file synchronization
+      
   - type: dnf
     repos:
       copr:
@@ -25,6 +60,9 @@ modules:
       packages:
         - micro
         - starship
+        - git
+        - neovim
+        - vlc
     remove:
       packages:
         # example: removing firefox (in favor of the flatpak)
@@ -32,14 +70,43 @@ modules:
         - firefox
         - firefox-langpacks # also remove firefox dependency (not required for all packages, this is a special case)
 
+  # 4. Automatically Enable the Tailscale Service on Boot
+  - type: systemd
+    system:
+      enabled:
+        - tailscaled.service
+        - iptsd.service
+
   - type: default-flatpaks
     configurations:
       - notify: true # Send notification after install/uninstall is finished (true/false)
         scope: system
         # If no repo information is specified, Flathub will be used by default
         install: # system flatpaks we want all users to have and not remove
-          - org.mozilla.firefox
+          - com.brave.Browser
           - org.gnome.Loupe
+          - com.valvesoftware.Steam
+          - com.github.tchx84.Flatseal
+          - com.discordapp.Discord
+          - org.telegram.desktop
+          - org.localsend.localsend_app
+          - it.mijorus.gearlever
+          - com.mattjakeman.ExtensionManager
+          - org.libreoffice.LibreOffice
+          - com.visualstudio.code
+          - io.missioncenter.MissionCenter
+          - com.ktechpit.whatsie
+          - org.mozilla.thunderbird
+          - com.github.wwmm.easyeffects
+          - org.keepassxc.KeePassXC
+          - us.zoom.Zoom
+          - org.jellyfin.JellyfinDesktop
+          - com.github.johnfactotum.Foliate
+          - com.github.xournalpp.xournalpp
+          - net.cozic.joplin_desktop
+          - com.jgraph.drawio.desktop
+          - io.github.hrkfdn.ncspot
+          - app.devsuite.Ptyxis
       - scope: user # Also add Flathub user repo, but no user packages
 
   - type: signing # this sets up the proper policy & signing files for signed images to work fully

@@ -84,4 +84,10 @@ else
     exit 1
 fi
 
+# Verify that non-installable template units are not enabled statically
+if grep -q "iptsd\.service" "${RECIPE_FILE}"; then
+    echo "ERROR: 'iptsd.service' cannot be enabled via systemd module! iptsd is a template service managed dynamically by udev." >&2
+    exit 1
+fi
+
 echo "=== [Quality Gate Passed] Image recipe is verified and ready for CI/CD staging. ==="

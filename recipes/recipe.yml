@@ -40,12 +40,11 @@ modules:
       - kernel-surface-core
       - kernel-surface-modules
       - kernel-surface-modules-extra
-      - iptsd                   # Surface touchscreen/stylus daemon
+      - iptsd                   # Surface touchscreen/stylus daemon (activated dynamically via udev)
       - libwacom-surface
       - libwacom-surface-data
       - surface-secureboot      # MOK key enrollment for Secure Boot
       - surface-control         # Surface battery and thermal profile CLI
-      - surface-dtx-daemon      # Surface detachment daemon
       - tailscale
       - mullvad-vpn             # Official Mullvad VPN client package
       - syncthing               # Syncthing file synchronization
@@ -65,12 +64,11 @@ modules:
         - firefox-langpacks
 
   # 4. Hardware and network service daemons
+  # Note: iptsd is managed dynamically by udev (iptsd@dev-hidraw*.service) and should NOT be enabled statically.
   - type: systemd
     system:
       enabled:
         - tailscaled.service
-        - iptsd.service
-        - surface-dtx-daemon.service
 
   # 5. Flatpak application suites
   - type: default-flatpaks

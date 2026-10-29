@@ -1,118 +1,165 @@
-# Surface Pro 9 (Intel) Universal Blue OS Image Pipeline
+# Surface Andree: Custom Universal Blue OS for Microsoft Surface Pro 9 (Intel)
 
-Declarative, immutable client operating system pipeline for the **Microsoft Surface Pro 9 (Intel)** built via BlueBuild, synchronized across devices via Syncthing, verified locally on the home server, built and signed on GitHub Actions, and deployed atomically to the Surface Pro 9.
+[![Build Custom Image](https://github.com/RowdyRagamuffin/surface-andree/actions/workflows/build.yml/badge.svg)](https://github.com/RowdyRagamuffin/surface-andree/actions/workflows/build.yml)
+[![Container Image](https://img.shields.io/badge/GHCR-surface--andree%3Alatest-blue?logo=docker)](https://github.com/RowdyRagamuffin/surface-andree/pkgs/container/surface-andree)
+[![Cosign Verified](https://img.shields.io/badge/Cosign-Signed-green?logo=sigstore)](https://github.com/RowdyRagamuffin/surface-andree/blob/main/cosign.pub)
+
+A declarative, immutable client operating system image built specifically for the **Microsoft Surface Pro 9 (Intel)**. Based on **Universal Blue (Fedora Silverblue 44)** via [BlueBuild](https://blue-build.org), continuously compiled and cryptographically attested on GitHub Actions, and deployed atomically via `rpm-ostree`.
 
 ---
 
-## 1. Architecture & GitOps Supply Chain Topology
+## Architecture & Hardware Integration
 
 ```mermaid
-flowchart LR
-    subgraph Client["Microsoft Surface Pro 9 (Intel)"]
-        direction TB
-        LocalEdit["Recipe & Config Edits"]
-        OSTreeDeployment["Immutable OS Layer\n(rpm-ostree / bootc)"]
+flowchart TD
+    subgraph Client["Client: Microsoft Surface Pro 9 (Intel)"]
+        A1["Active Booted OS\n(rpm-ostree / bootc)"]
+        A2["Pinned Fallback OS\n(ostree admin pin 1)"]
+        A3["IPTS Digitizer Daemon\n(/etc/iptsd.d/90-calibration.conf)"]
     end
 
-    subgraph HomeServer["Home Server (servegio)"]
-        direction TB
-        Staging["Staging Directory\nworkstations/surface-andree/"]
-        SyncthingSync["Syncthing Continuous Sync"]
-        LocalGate["Quality Gate & Validation\n(scripts/validate.sh)"]
-        SyncScript["Push Trigger\n(scripts/sync_to_github.sh)"]
+    subgraph GitHubSupplyChain["GitHub & Container Registry"]
+        B1["BlueBuild Automation\n(.github/workflows/build.yml)"]
+        B2["Cosign Cryptographic Attestation\n(Sigstore Key Pair)"]
+        B3["GHCR OCI Registry\nghcr.io/rowdyragamuffin/surface-andree:latest"]
     end
 
-    subgraph GitHubCI["GitHub (RowdyRagamuffin/surface-andree) & GHCR"]
-        direction TB
-        PublicRepo["surface-andree Repository"]
-        Actions["GitHub Actions\n(blue-build/github-action@v1.13)"]
-        Cosign["Cosign Signature\n(SIGNING_SECRET)"]
-        GHCR["ghcr.io/RowdyRagamuffin/surface-andree:latest"]
+    subgraph SyncthingStorage["Continuous Synchronization Pool"]
+        C1["Home Server (servegio)\nworkstations/surface-andree/"]
     end
 
-    LocalEdit -.->|Syncthing Sync| SyncthingSync
-    SyncthingSync --> Staging
-    Staging --> LocalGate
-    LocalGate --> SyncScript
-    SyncScript -->|git push / subtree| PublicRepo
-    PublicRepo --> Actions
-    Actions --> Cosign
-    Cosign --> GHCR
-    GHCR -->|rpm-ostree rebase| OSTreeDeployment
+    C1 <==>|Syncthing Sync| Client
+    C1 -->|git push| B1
+    B1 --> B2
+    B2 --> B3
+    B3 -->|rpm-ostree rebase / upgrade| A1
+    A1 -.->|Emergency Fallback| A2
+```
+
+### Core Hardware Stack:
+- **Kernel:** Patched `linux-surface` kernel suite (`kernel-surface`, `kernel-surface-core`, `kernel-surface-modules`, `kernel-surface-modules-extra`) providing native drivers for Surface ACPI, sensors, and power profiles.
+- **Touchscreen & Stylus:** Intel Precise Touch & Stylus daemon (`iptsd`) paired with custom contact sensitivity curves in `/etc/iptsd.d/90-calibration.conf`. Triggered dynamically via udev (`iptsd@dev-hidraw*.service`).
+- **Stylus Graphics Integration:** `libwacom-surface` and `libwacom-surface-data` for precision pressure curves and button mapping in Wayland and GNOME.
+- **Hardware Control CLI:** `surface-control` for configuring battery charging limits (`surface control battery-limit on`) and performance profiles.
+- **Networking & Synchronization:** Tailscale VPN and Syncthing services built into the immutable root.
+
+---
+
+## Cryptographic Supply Chain & Public Verification
+
+All container images are cryptographically signed using **Cosign** (Sigstore).
+
+- **Public Key (`cosign.pub`):** Committed directly to the root of this repository. It is standard cryptographic practice for public keys to be publicly accessible, enabling container runtimes, package managers, and end devices to verify the authenticity and integrity of image digests.
+- **Private Key (`SIGNING_SECRET`):** Maintained strictly confidential inside GitHub Repository Secrets, protected with automated CRLF line sanitization.
+
+To manually verify the published container image:
+```bash
+cosign verify --key cosign.pub ghcr.io/rowdyragamuffin/surface-andree:latest
 ```
 
 ---
 
-## 2. Directory Layout & Syncthing Synchronization
+## Installation & Deployment Runbook
 
-This directory is part of the synchronized storage pool:
+### 1. Safety Pinning (Pre-Rebase)
+Before rebasing your operating system, pin your existing working deployment so it remains available in your GRUB bootloader:
+
+```bash
+# Check existing deployment index
+rpm-ostree status
+
+# Pin your active booted deployment
+sudo ostree admin pin 0
+```
+*(If you have already initiated a rebase and it is staged at index 0, pin index 1 instead: `sudo ostree admin pin 1`).*
+
+---
+
+### 2. Initial Rebase to `surface-andree`
+Pull and stage the custom immutable container image:
+
+```bash
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/rowdyragamuffin/surface-andree:latest
+```
+
+---
+
+### 3. Reboot into the New Image
+Once staging completes, reboot into your tailored Surface Pro 9 environment:
+
+```bash
+systemctl reboot
+```
+
+---
+
+### 4. Post-Boot Sanity Checks
+
+Open a terminal on your newly booted system to verify hardware and service health:
+
+1. **Verify Surface Kernel:**
+   ```bash
+   uname -r
+   ```
+   *Output must contain `-surface` (e.g. `6.x.x-xxx.surface.fc44.x86_64`).*
+
+2. **Verify Touch & Stylus Daemon:**
+   ```bash
+   systemctl status "iptsd@*"
+   ```
+   *Output must report `active (running)` on `iptsd@dev-hidraw0.service`.*
+
+3. **Verify Surface Hardware CLI:**
+   ```bash
+   surface status
+   surface profile
+   ```
+
+4. **Verify Enabled Network Services:**
+   ```bash
+   systemctl status tailscaled.service
+   ```
+
+---
+
+## Routine Maintenance & Atomic Rollback
+
+### Staged OS Upgrades
+Whenever this repository compiles a new build, pull updates with a single command:
+```bash
+rpm-ostree upgrade
+systemctl reboot
+```
+
+### Zero-Penalty Atomic Rollback
+If any upstream kernel update or package dependency regresses:
+```bash
+# Atomic rollback to your prior working deployment
+rpm-ostree rollback
+systemctl reboot
+```
+*Alternatively, hold Shift/Esc at boot to open the GRUB menu and select your prior pinned deployment.*
+
+---
+
+## Repository Structure
+
 ```
 workstations/surface-andree/
 ├── recipes/
-│   └── recipe.yml                 # Declarative BlueBuild specification
+│   └── recipe.yml                 # Declarative BlueBuild image specification
 ├── files/
 │   └── system/
 │       └── etc/
 │           └── iptsd.d/
-│               └── 90-calibration.conf # Surface Pro 9 touch/stylus sensitivity tuning
+│               └── 90-calibration.conf # Hardware-tuned touch & stylus sensitivity
 ├── .github/
 │   └── workflows/
-│       └── build.yml              # CI/CD pipeline for building & signing image
+│       └── build.yml              # GitHub Actions automated build & Cosign signing
 ├── scripts/
-│   ├── validate.sh                # Local pre-push syntax, schema & secret scanner
-│   └── sync_to_github.sh          # Git subtree synchronization to GitHub
-├── cosign.pub                     # Public key for container signature verification
-└── README.md                      # Operational and rollback documentation
+│   ├── validate.sh                # Pre-push validation & secret leak scanner
+│   └── sync_to_github.sh          # Native git push dispatcher
+├── cosign.pub                     # Sigstore public key for image verification
+├── SIGNING_SECRET_SETUP.md        # Technical guide for repository signing secrets
+└── README.md                      # Operational handover and system documentation
 ```
-
----
-
-## 3. GitHub Secrets Setup (Required for Image Signing)
-
-To enable automatic cryptographic signing on GitHub Actions:
-1. Navigate to: `https://github.com/RowdyRagamuffin/surface-andree/settings/secrets/actions`
-2. Click **New repository secret**.
-3. Name: `SIGNING_SECRET`
-4. Value: Paste the generated private key (provided in the operational handover).
-5. Ensure `cosign.pub` in this repository root matches the private key.
-
----
-
-## 4. Local Validation & Git Sync Runbook
-
-### Run Quality Gate Check
-```bash
-bash workstations/surface-andree/scripts/validate.sh
-```
-
-### Push Validated Recipe to GitHub
-```bash
-bash workstations/surface-andree/scripts/sync_to_github.sh surface-andree main
-```
-
----
-
-## 5. Deployment & Rollback Runbook (on Surface Pro 9)
-
-### Initial Rebase to Custom GHCR Image
-Run in terminal on your Surface Pro 9:
-```bash
-# Rebase to the newly generated container image
-rpm-ostree rebase ostree-unverified-registry:ghcr.io/rowdyragamuffin/surface-andree:latest
-
-# Reboot into the new immutable deployment
-systemctl reboot
-```
-
-### Pull Regular Updates
-```bash
-rpm-ostree upgrade
-```
-
-### Instant Atomic Rollback
-If any upstream kernel regression or broken dependency occurs:
-```bash
-rpm-ostree rollback
-systemctl reboot
-```
-Or select the previous deployment entry directly from the GRUB boot menu during device startup.

@@ -70,6 +70,11 @@ modules:
         - firefox
         - firefox-langpacks
 
+  # 3b. System-wide Python telemetry and document generation libraries
+  - type: script
+    scripts:
+      - install-python-libraries.sh
+
   # 4. Hardware and network service daemons
   # Note: iptsd is managed dynamically by udev (iptsd@dev-hidraw*.service) and should NOT be enabled statically.
   - type: systemd

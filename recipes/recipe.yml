@@ -62,12 +62,9 @@ modules:
         - python3-devel
         - gcc
         - uv
-        # Automation & health telemetry RPM dependencies
-        - python3-requests
+        # Telemetry & automation packages
         - python3-dotenv
         - python3-pydantic
-        - python3-pysocks
-        - python3-docx
     remove:
       packages:
         - firefox

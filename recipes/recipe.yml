@@ -57,6 +57,17 @@ modules:
         - git
         - neovim
         - vlc
+        # Python core, development headers & package managers
+        - python3-pip
+        - python3-devel
+        - gcc
+        - uv
+        # Automation & health telemetry RPM dependencies
+        - python3-requests
+        - python3-dotenv
+        - python3-pydantic
+        - python3-pysocks
+        - python3-docx
     remove:
       packages:
         - firefox

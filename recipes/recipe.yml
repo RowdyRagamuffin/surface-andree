@@ -32,6 +32,7 @@ modules:
       - kernel
       - kernel-core
       - kernel-modules
+      - kernel-modules-core
       - kernel-modules-extra
       - libwacom
       - libwacom-data
@@ -39,6 +40,7 @@ modules:
       - kernel-surface
       - kernel-surface-core
       - kernel-surface-modules
+      - kernel-surface-modules-core
       - kernel-surface-modules-extra
       - iptsd                   # Surface touchscreen/stylus daemon (activated dynamically via udev)
       - libwacom-surface

@@ -23,6 +23,7 @@ modules:
         - https://pkg.surfacelinux.com/fedora/linux-surface.repo
         - https://pkgs.tailscale.com/stable/fedora/tailscale.repo
         - https://repository.mullvad.net/rpm/stable/mullvad.repo
+        - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
       copr:
         - atim/starship
 
@@ -59,6 +60,10 @@ modules:
         - git
         - neovim
         - vlc
+        - brave-browser
+        - keepassxc
+        - cheese
+        - gnome-weather
         # Python core, development headers & package managers
         - python3-pip
         - python3-devel
@@ -90,7 +95,6 @@ modules:
       - notify: true
         scope: system
         install:
-          - com.brave.Browser
           - org.gnome.Loupe
           - com.valvesoftware.Steam
           - com.github.tchx84.Flatseal
@@ -105,7 +109,6 @@ modules:
           - com.ktechpit.whatsie
           - org.mozilla.thunderbird
           - com.github.wwmm.easyeffects
-          - org.keepassxc.KeePassXC
           - us.zoom.Zoom
           - org.jellyfin.JellyfinDesktop
           - com.github.johnfactotum.Foliate

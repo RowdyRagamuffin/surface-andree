@@ -62,7 +62,7 @@ modules:
         - vlc
         - brave-browser
         - keepassxc
-        - cheese
+        - snapshot
         - gnome-weather
         # Python core, development headers & package managers
         - python3-pip

@@ -92,8 +92,13 @@ modules:
   # 5. Flatpak application suites
   - type: default-flatpaks
     configurations:
+      # Flathub system-wide applications
       - notify: true
         scope: system
+        repo:
+          url: https://dl.flathub.org/repo/flathub.flatpakrepo
+          name: flathub
+          title: Flathub
         install:
           - org.gnome.Loupe
           - com.valvesoftware.Steam
@@ -105,7 +110,6 @@ modules:
           - com.mattjakeman.ExtensionManager
           - org.libreoffice.LibreOffice
           - com.visualstudio.code
-          - io.missioncenter.MissionCenter
           - com.ktechpit.whatsie
           - org.mozilla.thunderbird
           - com.github.wwmm.easyeffects
@@ -117,7 +121,26 @@ modules:
           - com.jgraph.drawio.desktop
           - io.github.hrkfdn.ncspot
           - app.devsuite.Ptyxis
-      - scope: user
+          - org.gnome.World.Secrets
+          - io.freetubeapp.FreeTube
+          - net.nokyan.Resources
+          - org.remmina.Remmina
+          - org.gnome.Calculator
+          - org.gnome.TextEditor
+          - com.jeffser.Alpaca
+          - com.valvesoftware.SteamLink
+          - dev.deedles.Trayscale
+          - io.gitlab.news_flash.NewsFlash
+
+      # Hylki email client (upstream custom repository)
+      - notify: true
+        scope: system
+        repo:
+          url: https://hylki.hyprlab.co/flatpak/co.hyprlab.Hylki.flatpakrepo
+          name: hylki
+          title: Hylki
+        install:
+          - co.hyprlab.Hylki
 
   # 6. Cryptographic attestation and signature setup
   - type: signing

@@ -59,6 +59,7 @@ modules:
         - starship
         - git
         - neovim
+        - android-tools
         - vlc
         - brave-browser
         - keepassxc
